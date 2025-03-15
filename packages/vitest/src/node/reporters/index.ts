@@ -1,16 +1,18 @@
-import type { Reporter } from '../types/reporter'
+import type { Reporter, TestRunEndReason } from '../types/reporter'
 import type { BaseOptions, BaseReporter } from './base'
 import type { BlobOptions } from './blob'
 import type { DefaultReporterOptions } from './default'
 import type { HTMLOptions } from './html'
+import type { JsonOptions } from './json'
+import type { JUnitOptions } from './junit'
 import { BasicReporter } from './basic'
 import { BlobReporter } from './blob'
 import { DefaultReporter } from './default'
 import { DotReporter } from './dot'
 import { GithubActionsReporter } from './github-actions'
 import { HangingProcessReporter } from './hanging-process'
-import { type JsonOptions, JsonReporter } from './json'
-import { type JUnitOptions, JUnitReporter } from './junit'
+import { JsonReporter } from './json'
+import { JUnitReporter } from './junit'
 import { TapReporter } from './tap'
 import { TapFlatReporter } from './tap-flat'
 import { VerboseReporter } from './verbose'
@@ -27,7 +29,7 @@ export {
   TapReporter,
   VerboseReporter,
 }
-export type { BaseReporter, Reporter }
+export type { BaseReporter, Reporter, TestRunEndReason }
 
 export {
   BenchmarkBuiltinReporters,
@@ -42,17 +44,17 @@ export type {
 } from './json'
 
 export const ReportersMap = {
-  'default': DefaultReporter,
-  'basic': BasicReporter,
-  'blob': BlobReporter,
-  'verbose': VerboseReporter,
-  'dot': DotReporter,
-  'json': JsonReporter,
-  'tap': TapReporter,
-  'tap-flat': TapFlatReporter,
-  'junit': JUnitReporter,
-  'hanging-process': HangingProcessReporter,
-  'github-actions': GithubActionsReporter,
+  'default': DefaultReporter as typeof DefaultReporter,
+  'basic': BasicReporter as typeof BasicReporter,
+  'blob': BlobReporter as typeof BlobReporter,
+  'verbose': VerboseReporter as typeof VerboseReporter,
+  'dot': DotReporter as typeof DotReporter,
+  'json': JsonReporter as typeof JsonReporter,
+  'tap': TapReporter as typeof TapReporter,
+  'tap-flat': TapFlatReporter as typeof TapFlatReporter,
+  'junit': JUnitReporter as typeof JUnitReporter,
+  'hanging-process': HangingProcessReporter as typeof HangingProcessReporter,
+  'github-actions': GithubActionsReporter as typeof GithubActionsReporter,
 }
 
 export type BuiltinReporters = keyof typeof ReportersMap
@@ -70,3 +72,5 @@ export interface BuiltinReporterOptions {
   'hanging-process': never
   'html': HTMLOptions
 }
+
+export type { ReportedHookContext } from './reported-tasks'

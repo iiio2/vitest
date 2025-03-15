@@ -1,15 +1,17 @@
 import type { Options } from 'tinyexec'
 import type { UserConfig as ViteUserConfig } from 'vite'
+import type { WorkerGlobalState } from 'vitest'
 import type { WorkspaceProjectConfiguration } from 'vitest/config'
 import type { TestModule, UserConfig, Vitest, VitestRunMode } from 'vitest/node'
 import { webcrypto as crypto } from 'node:crypto'
 import fs from 'node:fs'
 import { Readable, Writable } from 'node:stream'
 import { fileURLToPath } from 'node:url'
+import { inspect } from 'node:util'
 import { dirname, resolve } from 'pathe'
 import { x } from 'tinyexec'
 import * as tinyrainbow from 'tinyrainbow'
-import { afterEach, onTestFinished, type WorkerGlobalState } from 'vitest'
+import { afterEach, onTestFinished } from 'vitest'
 import { startVitest } from 'vitest/node'
 import { getCurrentTest } from 'vitest/suite'
 import { Cli } from './cli'
@@ -17,10 +19,11 @@ import { Cli } from './cli'
 // override default colors to disable them in tests
 Object.assign(tinyrainbow.default, tinyrainbow.getDefaultColors())
 
-interface VitestRunnerCLIOptions {
+export interface VitestRunnerCLIOptions {
   std?: 'inherit'
   fails?: boolean
   preserveAnsi?: boolean
+  tty?: boolean
 }
 
 export async function runVitest(
@@ -46,6 +49,11 @@ export async function runVitest(
       callback()
     },
   })
+
+  if (runnerOptions?.tty) {
+    (stdout as typeof process.stdout).isTTY = true
+  }
+
   const stderr = new Writable({
     write(chunk, __, callback) {
       if (runnerOptions.std === 'inherit') {
@@ -101,7 +109,7 @@ export async function runVitest(
       console.error(e)
     }
     thrown = true
-    cli.stderr += e.stack
+    cli.stderr += inspect(e)
   }
   finally {
     exitCode = process.exitCode
@@ -178,6 +186,10 @@ export async function runCli(command: string, _options?: CliOptions | string, ..
   })
 
   if ((options as CliOptions)?.earlyReturn || args.includes('--inspect') || args.includes('--inspect-brk')) {
+    return output()
+  }
+
+  if (args[0] === 'init') {
     return output()
   }
 
@@ -293,13 +305,14 @@ export function useFS(root: string, structure: Record<string, string | ViteUserC
 export async function runInlineTests(
   structure: Record<string, string | ViteUserConfig | WorkspaceProjectConfiguration[]>,
   config?: UserConfig,
+  options?: VitestRunnerCLIOptions,
 ) {
   const root = resolve(process.cwd(), `vitest-test-${crypto.randomUUID()}`)
   const fs = useFS(root, structure)
   const vitest = await runVitest({
     root,
     ...config,
-  })
+  }, [], 'test', {}, options)
   return {
     fs,
     root,

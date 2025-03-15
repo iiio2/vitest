@@ -124,7 +124,7 @@ When using coverage, Vitest automatically adds test files `include` patterns to 
 ### exclude
 
 - **Type:** `string[]`
-- **Default:** `['**/node_modules/**', '**/dist/**', '**/cypress/**', '**/.{idea,git,cache,output,temp}/**', '**/{karma,rollup,webpack,vite,vitest,jest,ava,babel,nyc,cypress,tsup,build}.config.*']`
+- **Default:** `['**/node_modules/**', '**/dist/**', '**/cypress/**', '**/.{idea,git,cache,output,temp}/**', '**/{karma,rollup,webpack,vite,vitest,jest,ava,babel,nyc,cypress,tsup,build,eslint,prettier}.config.*']`
 - **CLI:** `vitest --exclude "**/excluded-file"`
 
 A list of glob patterns that should be excluded from your test files.
@@ -868,14 +868,14 @@ export default defineConfig({
 - **Type:** `number | string`
 - **Default:** _available CPUs_
 
-Maximum number or percentage of forks.
+Maximum number or percentage of forks. You can also use `VITEST_MAX_FORKS` environment variable.
 
 ##### poolOptions.forks.minForks<NonProjectOption />
 
 - **Type:** `number | string`
 - **Default:** _available CPUs_
 
-Minimum number or percentage of forks.
+Minimum number or percentage of forks. You can also use `VITEST_MIN_FORKS` environment variable.
 
 ##### poolOptions.forks.isolate
 
@@ -1012,14 +1012,14 @@ export default defineConfig({
 - **Type:** `number | string`
 - **Default:** _available CPUs_
 
-Maximum number or percentage of threads. You can also use `VITEST_MAX_FORKS` environment variable.
+Maximum number or percentage of forks. You can also use `VITEST_MAX_FORKS` environment variable.
 
 ##### poolOptions.vmForks.minForks<NonProjectOption />
 
 - **Type:** `number | string`
 - **Default:** _available CPUs_
 
-Minimum number or percentage of threads. You can also use `VITEST_MIN_FORKS` environment variable.
+Minimum number or percentage of forks. You can also use `VITEST_MIN_FORKS` environment variable.
 
 ##### poolOptions.vmForks.memoryLimit<NonProjectOption />
 
@@ -1351,7 +1351,8 @@ export default defineConfig({
 ```
 
 ::: tip NOTE
-Vitest automatically adds test files `include` patterns to the default value of `coverage.exclude`.
+Vitest automatically adds test files `include` patterns to the `coverage.exclude`.
+It's not possible to show coverage of test files.
 :::
 
 #### coverage.all
@@ -2040,7 +2041,7 @@ Sets the randomization seed, if tests are running in random order.
 #### sequence.hooks
 
 - **Type**: `'stack' | 'list' | 'parallel'`
-- **Default**: `'parallel'`
+- **Default**: `'stack'`
 - **CLI**: `--sequence.hooks=<value>`
 
 Changes the order in which hooks are executed.
@@ -2344,7 +2345,7 @@ Installs fake timers with the specified Unix epoch.
 #### fakeTimers.toFake
 
 - **Type:** `('setTimeout' | 'clearTimeout' | 'setImmediate' | 'clearImmediate' | 'setInterval' | 'clearInterval' | 'Date' | 'nextTick' | 'hrtime' | 'requestAnimationFrame' | 'cancelAnimationFrame' | 'requestIdleCallback' | 'cancelIdleCallback' | 'performance' | 'queueMicrotask')[]`
-- **Default:** everything available globally except `nextTick`
+- **Default:** everything available globally except `nextTick` and `queueMicrotask`
 
 An array with names of global methods and APIs to fake.
 

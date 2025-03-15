@@ -79,10 +79,6 @@ export interface TaskPopulated extends TaskBase {
    */
   file: File
   /**
-   * Whether the task was skipped by calling `t.skip()`.
-   */
-  pending?: boolean
-  /**
    * Whether the task should succeed if it fails. If the task fails, it will be marked as passed.
    */
   fails?: boolean
@@ -152,6 +148,11 @@ export interface TaskResult {
   repeatCount?: number
   /** @private */
   note?: string
+  /**
+   * Whether the task was skipped by calling `t.skip()`.
+   * @internal
+   */
+  pending?: boolean
 }
 
 /**
@@ -172,6 +173,30 @@ export type TaskResultPack = [
    */
   meta: TaskMeta,
 ]
+
+export type TaskEventPack = [
+  /**
+   * Unique task identifier from `task.id`.
+   */
+  id: string,
+  /**
+   * The name of the event that triggered the update.
+   */
+  event: TaskUpdateEvent,
+]
+
+export type TaskUpdateEvent =
+  | 'test-failed-early'
+  | 'suite-failed-early'
+  | 'test-prepare'
+  | 'test-finished'
+  | 'test-retried'
+  | 'suite-prepare'
+  | 'suite-finished'
+  | 'before-hook-start'
+  | 'before-hook-end'
+  | 'after-hook-start'
+  | 'after-hook-end'
 
 export interface Suite extends TaskBase {
   type: 'suite'
@@ -222,6 +247,10 @@ export interface Test<ExtraContext = object> extends TaskPopulated {
    * Test context that will be passed to the test function.
    */
   context: TestContext & ExtraContext
+  /**
+   * The test timeout in milliseconds.
+   */
+  timeout: number
 }
 
 /**
@@ -333,6 +362,11 @@ interface TestForFunction<ExtraContext> {
     any,
     TestContext & ExtraContext
   >
+}
+
+interface SuiteForFunction {
+  <T>(cases: ReadonlyArray<T>): EachFunctionReturn<[T]>
+  (...args: [TemplateStringsArray, ...any]): EachFunctionReturn<any[]>
 }
 
 interface TestCollectorCallable<C = object> {
@@ -500,6 +534,7 @@ type ChainableSuiteAPI<ExtraContext = object> = ChainableFunction<
   SuiteCollectorCallable<ExtraContext>,
   {
     each: TestEachFunction
+    for: SuiteForFunction
   }
 >
 
@@ -581,6 +616,7 @@ export interface SuiteCollector<ExtraContext = object> {
     | Test<ExtraContext>
     | SuiteCollector<ExtraContext>
   )[]
+  suite?: Suite
   task: (name: string, options?: TaskCustomOptions) => Test<ExtraContext>
   collect: (file: File) => Promise<Suite>
   clear: () => void
@@ -622,7 +658,7 @@ export interface TestContext {
    * Mark tests as skipped. All execution after this call will be skipped.
    * This function throws an error, so make sure you are not catching it accidentally.
    */
-  skip: (note?: string) => void
+  skip: (note?: string) => never
 }
 
 /**

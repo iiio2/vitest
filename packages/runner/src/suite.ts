@@ -205,7 +205,10 @@ export function getRunner(): VitestRunner {
 
 function createDefaultSuite(runner: VitestRunner) {
   const config = runner.config.sequence
-  return suite('', { concurrent: config.concurrent }, () => {})
+  const collector = suite('', { concurrent: config.concurrent }, () => {})
+  // no parent suite for top-level tests
+  delete collector.suite
+  return collector
 }
 
 export function clearCollectorContext(
@@ -294,22 +297,23 @@ function createSuiteCollector(
   suiteOptions?: TestOptions,
 ) {
   const tasks: (Test | Suite | SuiteCollector)[] = []
-  const factoryQueue: (Test | Suite | SuiteCollector)[] = []
 
-  let suite: Suite
+  let suite!: Suite
 
   initSuite(true)
 
   const task = function (name = '', options: TaskCustomOptions = {}) {
+    const timeout = options?.timeout ?? runner.config.testTimeout
     const task: Test = {
       id: '',
       name,
-      suite: undefined!,
+      suite: collectorContext.currentSuite?.suite,
       each: options.each,
       fails: options.fails,
       context: undefined!,
       type: 'test',
       file: undefined!,
+      timeout,
       retry: options.retry ?? runner.config.retry,
       repeats: options.repeats,
       mode: options.only
@@ -343,7 +347,7 @@ function createSuiteCollector(
         task,
         withTimeout(
           withAwaitAsyncAssertions(withFixtures(handler, context), task),
-          options?.timeout ?? runner.config.testTimeout,
+          timeout,
         ),
       )
     }
@@ -395,6 +399,7 @@ function createSuiteCollector(
     type: 'collector',
     name,
     mode,
+    suite,
     options: suiteOptions,
     test,
     tasks,
@@ -417,6 +422,7 @@ function createSuiteCollector(
       id: '',
       type: 'suite',
       name,
+      suite: collectorContext.currentSuite?.suite,
       mode,
       each,
       file: undefined!,
@@ -442,7 +448,6 @@ function createSuiteCollector(
 
   function clear() {
     tasks.length = 0
-    factoryQueue.length = 0
     initSuite(false)
   }
 
@@ -451,14 +456,13 @@ function createSuiteCollector(
       throw new TypeError('File is required to collect tasks.')
     }
 
-    factoryQueue.length = 0
     if (factory) {
       await runWithSuite(collector, () => factory(test))
     }
 
     const allChildren: Task[] = []
 
-    for (const i of [...factoryQueue, ...tasks]) {
+    for (const i of tasks) {
       allChildren.push(i.type === 'collector' ? await i.collect(file) : i)
     }
 
@@ -466,7 +470,6 @@ function createSuiteCollector(
     suite.tasks = allChildren
 
     allChildren.forEach((task) => {
-      task.suite = suite
       task.file = file
     })
 
@@ -479,7 +482,7 @@ function createSuiteCollector(
 
 function withAwaitAsyncAssertions<T extends (...args: any[]) => any>(fn: T, task: TaskPopulated): T {
   return (async (...args: any[]) => {
-    await fn(...args)
+    const fnResult = await fn(...args)
     // some async expect will be added to this array, in case user forget to await them
     if (task.promises) {
       const result = await Promise.allSettled(task.promises)
@@ -490,6 +493,7 @@ function withAwaitAsyncAssertions<T extends (...args: any[]) => any>(fn: T, task
         throw errors
       }
     }
+    return fnResult
   }) as T
 }
 
@@ -591,6 +595,31 @@ function createSuite() {
       })
 
       this.setContext('each', undefined)
+    }
+  }
+
+  suiteFn.for = function <T>(
+    this: {
+      withContext: () => SuiteAPI
+      setContext: (key: string, value: boolean | undefined) => SuiteAPI
+    },
+    cases: ReadonlyArray<T>,
+    ...args: any[]
+  ) {
+    if (Array.isArray(cases) && args.length) {
+      cases = formatTemplateString(cases, args)
+    }
+
+    return (
+      name: string | Function,
+      optionsOrFn: ((...args: T[]) => void) | TestOptions,
+      fnOrOptions?: ((...args: T[]) => void) | number | TestOptions,
+    ) => {
+      const name_ = formatName(name)
+      const { options, handler } = parseArguments(optionsOrFn, fnOrOptions)
+      cases.forEach((item, idx) => {
+        suite(formatTitle(name_, toArray(item), idx), options, () => handler(item))
+      })
     }
   }
 
@@ -756,7 +785,7 @@ function createTest(
 function formatName(name: string | Function) {
   return typeof name === 'string'
     ? name
-    : name instanceof Function
+    : typeof name === 'function'
       ? name.name || '<anonymous>'
       : String(name)
 }

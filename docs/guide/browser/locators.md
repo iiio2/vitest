@@ -3,7 +3,7 @@ title: Locators | Browser Mode
 outline: [2, 3]
 ---
 
-# Locators <Version>2.1.0</Version>
+# Locators
 
 A locator is a representation of an element or a number of elements. Every locator is defined by a string called a selector. Vitest abstracts this selector by providing convenient methods that generate those selectors behind the scenes.
 
@@ -381,7 +381,7 @@ It is recommended to use this only after the other locators don't work for your 
 
 - `exact: boolean`
 
-  Whether the `text` is matched exactly: case-sensetive and whole-string. Disabled by default. This option is ignored if `text` is a regular expression. Note that exact match still trims whitespace.
+  Whether the `text` is matched exactly: case-sensitive and whole-string. Disabled by default. This option is ignored if `text` is a regular expression. Note that exact match still trims whitespace.
 
 #### See also
 
@@ -393,7 +393,7 @@ It is recommended to use this only after the other locators don't work for your 
 function nth(index: number): Locator
 ```
 
-This method returns a new locator that matches only a specific index within a multi-element query result. Unlike `elements()[n]`, the `nth` locator will be retried until the element is present.
+This method returns a new locator that matches only a specific index within a multi-element query result. It's zero based, `nth(0)` selects the first element. Unlike `elements()[n]`, the `nth` locator will be retried until the element is present.
 
 ```html
 <div aria-label="one"><input/><input/><input/></div>
@@ -505,7 +505,7 @@ await page.getByRole('img', { name: 'Rose' }).tripleClick()
 ### clear
 
 ```ts
-function clear(): Promise<void>
+function clear(options?: UserEventClearOptions): Promise<void>
 ```
 
 Clears the input element content.

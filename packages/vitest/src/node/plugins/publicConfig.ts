@@ -45,11 +45,11 @@ export async function resolveConfig(
   // Reflect just to avoid type error
   const updatedOptions = Reflect.get(config, '_vitest') as UserConfig
   const vitestConfig = resolveVitestConfig(
-    'test',
+    vitest,
     updatedOptions,
     config,
-    vitest.logger,
   )
+  await vitest.close()
   return {
     viteConfig: config,
     vitestConfig,

@@ -9,16 +9,13 @@ const root = resolve(__dirname, '../fixtures/fails')
 const files = await glob(['**/*.test.ts'], { cwd: root, dot: true, expandDirectories: false })
 
 it.each(files)('should fail %s', async (file) => {
-  const { stderr } = await runVitest({
-    root,
-    update: file === 'inline-snapshop-inside-loop.test.ts' ? true : undefined,
-  }, [file])
+  const { stderr } = await runVitest({ root }, [file])
 
   expect(stderr).toBeTruthy()
   const msg = String(stderr)
     .split(/\n/g)
     .reverse()
-    .filter(i => i.includes('Error: ') && !i.includes('Command failed') && !i.includes('stackStr') && !i.includes('at runTest') && !i.includes('at runWithTimeout'))
+    .filter(i => i.includes('Error: ') && !i.includes('Command failed') && !i.includes('stackStr') && !i.includes('at runTest') && !i.includes('at runWithTimeout') && !i.includes('file:'))
     .map(i => i.trim().replace(root, '<rootDir>'),
     )
     .join('\n')
@@ -115,7 +112,7 @@ it('prints a warning if the assertion is not awaited in the browser mode', async
       test: {
         browser: {
           enabled: true,
-          name: 'chromium',
+          instances: [{ browser: 'chromium' }],
           provider: 'playwright',
           headless: true,
         },

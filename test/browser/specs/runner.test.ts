@@ -4,6 +4,8 @@ import { readFile } from 'node:fs/promises'
 import { beforeAll, describe, expect, onTestFailed, test } from 'vitest'
 import { instances, provider, runBrowserTests } from './utils'
 
+function noop() {}
+
 describe('running browser tests', async () => {
   let stderr: string
   let stdout: string
@@ -11,13 +13,36 @@ describe('running browser tests', async () => {
   let passedTests: any[]
   let failedTests: any[]
   let vitest: Vitest
+  const events: string[] = []
 
   beforeAll(async () => {
     ({
       stderr,
       stdout,
       ctx: vitest,
-    } = await runBrowserTests())
+    } = await runBrowserTests({
+      reporters: [
+        {
+          onBrowserInit(project) {
+            events.push(`onBrowserInit ${project.name}`)
+          },
+        },
+        'json',
+        {
+          onInit: noop,
+          onPathsCollected: noop,
+          onCollected: noop,
+          onFinished: noop,
+          onTaskUpdate: noop,
+          onTestRemoved: noop,
+          onWatcherStart: noop,
+          onWatcherRerun: noop,
+          onServerRestart: noop,
+          onUserConsoleLog: noop,
+        },
+        'default',
+      ],
+    }))
 
     const browserResult = await readFile('./browser.json', 'utf-8')
     browserResultJson = JSON.parse(browserResult)
@@ -33,6 +58,11 @@ describe('running browser tests', async () => {
     })
 
     const testFiles = browserResultJson.testResults.map(t => t.name)
+
+    vitest.projects.forEach((project) => {
+      // the order is non-deterministic
+      expect(events).toContain(`onBrowserInit ${project.name}`)
+    })
 
     // test files are optimized automatically
     expect(vitest.projects.map(p => p.browser?.vite.config.optimizeDeps.entries))
@@ -133,15 +163,32 @@ error with a stack
 
   test(`stack trace points to correct file in every browser`, () => {
     // depending on the browser it references either `.toBe()` or `expect()`
-    expect(stderr).toMatch(/test\/failing.test.ts:10:(12|17)/)
+    expect(stderr).toMatch(/test\/failing.test.ts:11:(12|17)/)
 
     // column is 18 in safari, 8 in others
     expect(stderr).toMatch(/throwError src\/error.ts:8:(18|8)/)
 
     expect(stderr).toContain('The call was not awaited. This method is asynchronous and must be awaited; otherwise, the call will not start to avoid unhandled rejections.')
-    expect(stderr).toMatch(/test\/failing.test.ts:18:(27|36)/)
-    expect(stderr).toMatch(/test\/failing.test.ts:19:(27|33)/)
-    expect(stderr).toMatch(/test\/failing.test.ts:20:(27|39)/)
+    expect(stderr).toMatch(/test\/failing.test.ts:19:(27|36)/)
+    expect(stderr).toMatch(/test\/failing.test.ts:20:(27|33)/)
+    expect(stderr).toMatch(/test\/failing.test.ts:21:(27|39)/)
+
+    expect(stderr).toMatch(/bundled-lib\/src\/b.js:2:(8|18)/)
+    expect(stderr).toMatch(/bundled-lib\/src\/index.js:5:(15|17)/)
+
+    if (provider === 'playwright') {
+      // page.getByRole('code').click()
+      expect(stderr).toContain('locator.click: Timeout')
+      // playwright error is proxied from the server to the client and back correctly
+      expect(stderr).toContain('waiting for locator(\'[data-vitest="true"]\').contentFrame().getByRole(\'code\')')
+      expect(stderr).toMatch(/test\/failing.test.ts:27:(33|39)/)
+      // await expect.element().toBeVisible()
+      expect(stderr).toContain('Cannot find element with locator: getByRole(\'code\')')
+      expect(stderr).toMatch(/test\/failing.test.ts:31:(49|61)/)
+    }
+
+    // index() is called from a bundled file
+    expect(stderr).toMatch(/test\/failing.test.ts:36:(2|8)/)
   })
 
   test('popup apis should log a warning', () => {
@@ -159,6 +206,9 @@ test('user-event', async () => {
   const { stdout, stderr } = await runBrowserTests({
     root: './fixtures/user-event',
   })
+  if (provider !== 'webdriverio') {
+    expect(stderr).toBe('')
+  }
   onTestFailed(() => console.error(stderr))
   instances.forEach(({ browser }) => {
     expect(stdout).toReportPassedTest('cleanup-retry.test.ts', browser)
@@ -173,7 +223,7 @@ test('timeout', async () => {
   const { stderr } = await runBrowserTests({
     root: './fixtures/timeout',
   })
-  expect(stderr).toContain('Matcher did not succeed in 500ms')
+  expect(stderr).toContain('Matcher did not succeed in time.')
   if (provider === 'playwright') {
     expect(stderr).toContain('locator.click: Timeout 500ms exceeded.')
     expect(stderr).toContain('locator.click: Timeout 345ms exceeded.')

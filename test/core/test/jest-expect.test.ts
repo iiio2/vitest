@@ -246,6 +246,15 @@ describe('jest-expect', () => {
           message: () => '',
         }
       },
+      toBeTestedMatcherContext<T>(received: unknown, expected: T) {
+        if (typeof this.utils?.stringify !== 'function') {
+          throw new TypeError('this.utils.stringify is not available.')
+        }
+        return {
+          pass: received === expected,
+          message: () => 'toBeTestedMatcherContext',
+        }
+      },
     })
 
     expect(5).toBeDividedBy(5)
@@ -705,6 +714,32 @@ describe('toHaveBeenCalled', () => {
         expect(mock).not.toHaveBeenCalled()
       }).toThrow(/^expected "spy" to not be called at all[^e]/)
     })
+  })
+
+  it('undefined argument', () => {
+    const fn = vi.fn()
+    fn(undefined)
+    expect(fn).not.toHaveBeenCalledWith()
+    expect(fn).toHaveBeenCalledWith(undefined)
+    expect(fn).toHaveBeenCalledWith(expect.toSatisfy(() => true))
+    expect(fn).toHaveBeenCalledWith(expect.not.toSatisfy(() => false))
+    expect(fn).toHaveBeenCalledWith(expect.toBeOneOf([undefined, null]))
+  })
+
+  it('no argument', () => {
+    const fn = vi.fn()
+    fn()
+    expect(fn).toHaveBeenCalledWith()
+    expect(fn).not.toHaveBeenCalledWith(undefined)
+    expect(fn).not.toHaveBeenCalledWith(expect.toSatisfy(() => true))
+    expect(fn).not.toHaveBeenCalledWith(expect.not.toSatisfy(() => false))
+    expect(fn).not.toHaveBeenCalledWith(expect.toBeOneOf([undefined, null]))
+  })
+
+  it('no strict equal check for each argument', () => {
+    const fn = vi.fn()
+    fn({ x: undefined, z: 123 })
+    expect(fn).toHaveBeenCalledWith({ y: undefined, z: 123 })
   })
 })
 
@@ -1171,6 +1206,19 @@ describe('async expect', () => {
     catch (error) {
       expect(error).toMatchObject({ message: 'promise rejected "+0" instead of resolving' })
     }
+  })
+
+  it('chainable types', async () => {
+    /* eslint-disable prefer-promise-reject-errors */
+    await expect(Promise.resolve(1)).resolves.toBeOneOf([1])
+    await expect(Promise.resolve(1)).resolves.not.toBeOneOf([2])
+    await expect(Promise.reject(1)).rejects.toBeOneOf([1])
+    await expect(Promise.reject(1)).rejects.not.toBeOneOf([2])
+    await expect(Promise.resolve(1)).resolves.toSatisfy(v => v === 1)
+    await expect(Promise.reject(2)).rejects.toSatisfy(v => v === 2)
+    await (expect(Promise.resolve(1)).resolves.to.equal(1) satisfies Promise<any>)
+    await (expect(Promise.resolve(1)).resolves.not.to.equal(2) satisfies Promise<any>)
+    /* eslint-enable prefer-promise-reject-errors */
   })
 })
 
